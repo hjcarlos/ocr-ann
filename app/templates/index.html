@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>OCR Grid Prediction</title>
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='index.css') }}"
+    />
+  </head>
+  <body>
+    <h1>Optical Character Recognition</h1>
+
+    <div id="grid" class="grid"></div>
+
+    <button onclick="clearGrid()">Clear</button>
+    <button onclick="predict()">Predict</button>
+
+    <div id="result" class="result"></div>
+
+    <script>
+      const grid = document.getElementById("grid");
+      const rows = 7,
+        cols = 5;
+      let cells = [];
+
+      // Drawing state
+      let isDrawing = false;
+      let drawValue = 1;
+
+      function toggle(cell, value = null) {
+        if (value === null) {
+          cell.classList.toggle("active");
+        } else if (value === 1) {
+          cell.classList.add("active");
+        } else {
+          cell.classList.remove("active");
+        }
+      }
+
+      function createGrid() {
+        for (let i = 0; i < rows; i++) {
+          cells[i] = [];
+          for (let j = 0; j < cols; j++) {
+            const cell = document.createElement("div");
+            cell.className = "cell";
+            cell.dataset.row = i;
+            cell.dataset.col = j;
+
+            // --- pointer events ---
+            cell.addEventListener("pointerdown", (e) => {
+              e.preventDefault();
+              isDrawing = true;
+              drawValue = cell.classList.contains("active") ? 0 : 1;
+              toggle(cell, drawValue);
+            });
+
+            cell.addEventListener("pointerenter", () => {
+              if (isDrawing) toggle(cell, drawValue);
+            });
+
+            grid.appendChild(cell);
+            cells[i][j] = cell;
+          }
+        }
+        // Global pointer events
+        window.addEventListener("pointerup", () => (isDrawing = false));
+        window.addEventListener("pointercancel", () => (isDrawing = false));
+      }
+
+      function clearGrid() {
+        cells.flat().forEach((cell) => cell.classList.remove("active"));
+        document.getElementById("result").innerText = "";
+      }
+
+      function predict() {
+        const matrix = cells.map((row) =>
+          row.map((cell) => (cell.classList.contains("active") ? 1 : 0))
+        );
+
+        fetch("/predict", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ grid: matrix }),
+        })
+          .then((res) => res.json())
+          .then((data) => {
+            document.getElementById(
+              "result"
+            ).innerText = `Predicted ASCII: ${data.ascii} → Character: ${data.char}`;
+          });
+      }
+
+      createGrid();
+    </script>
+  </body>
+</html>
